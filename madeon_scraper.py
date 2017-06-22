@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 import logging
 import os
@@ -10,49 +12,57 @@ class MadeonScraper(object):
     def __init__(self):
         self.logger = logging.getLogger()
 
-        # TODO(and0r): move these to discrete method
-        self.relative_path = "files/"
-        self.instrument_paths = ['drum', 'bass', 'sounds']
-
     def start_scraper(self):
         self.logger.info("Starting to scrape...")
+        instrument_paths = ["bass", "drum", "sounds"]
+
         self._ensure_local_directory_exists()
 
-        for instrument in self.instrument_paths:
+        for instrument in instrument_paths:
 
             for i in range(1, 16):
-                file_name = "files/{}.1.{}.ogg".format(instrument, i)
-                res = requests.get(
-                    self._get_full_url().format(instrument, i), stream=True)
+                destination_path = self._get_file_destination(instrument, i)
+                res = self._make_request(instrument, i)
 
                 try:
 
                     if res.status_code == 200:
-                        self.logger.info("Response code %s - Downloading: %s",
-                                         res.status_code, file_name[6:])
-                        with open(file_name, 'wb') as f:
-                            res.raw.decode_content = True
-                            shutil.copyfileobj(res.raw, f)
+                        self._write_file(res.raw, destination_path)
                     elif res.status_code == 404:
-                        self.logger.info("Url doesn't exist")
+                        self.logger.info(
+                            "URL doesn't exist - %s out of range",
+                            destination_path[6:])
                 except Exception as e:
                     self.logger.warn(
                         "Received unexpected exception. Stopping scrape.", e)
 
-    # TODO(and0r): refactor this to include instruments in path
-    def _get_full_url(self):
-        # def _get_full_url(self, instrument):
+    def _make_request(self, instrument, n):
+        response = requests.get(self._get_full_url(instrument, n), stream=True)
+        return response
+
+    def _get_full_url(self, instrument, n):
         url_base = "http://madeonwmas.s3-eu-west-1.amazonaws.com/assets/audio/"
         file_format = "{}.1.{}.ogg"
-        # instruments = ['drum', 'bass', 'sounds']
-        # return url_base + file_format.format(instruments)
-        return url_base + file_format
+        full_url = url_base + file_format.format(instrument, n)
+        return full_url
 
-    # TODO(and0r): build this for file creation
-    # def _get_file_destination(self):
+    def _get_file_destination(self, instrument, n):
+        return"files/{}.1.{}.ogg".format(instrument, n)
+
+    def _write_file(self, raw_response, destination_path):
+
+        if os.path.isfile(destination_path):
+            self.logger.info("%s already exists!", destination_path[6:])
+        else:
+            self.logger.info("Writing %s to file", destination_path[6:])
+            with open(destination_path, "wb") as f:
+                raw_response.decode_content = True
+                shutil.copyfileobj(raw_response, f)
+                f.close()
 
     def _ensure_local_directory_exists(self):
-        os.makedirs(self.relative_path, exist_ok=True)
+        relative_path = "files/"
+        os.makedirs(relative_path, exist_ok=True)
 
 
 def main(args):
