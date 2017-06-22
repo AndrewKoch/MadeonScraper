@@ -2,7 +2,7 @@
 
 A web scraper to extract the audio files from Madeon's Adventure Machine
 website!
----
+
 #### Just the audio, please
 
 https://www.dropbox.com/s/1ururt0l2dqiloa/MadeonAdventure.zip?dl=0
@@ -14,7 +14,7 @@ at http://www.madeon.fr/adventuremachine/ and written by http://wemakeawesomesh.
 I get a lot more. I am grateful for the attention my code doodle received so I
 am comitting this repo for public consumption and updated it for python3 use. If
 you haven't listened to Madeon's Adventure album, it is excellent!
----
+
 #### Get Scrapin'
 
 1. Clone from github.
