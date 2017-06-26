@@ -8,6 +8,7 @@ import os
 import requests
 import shutil
 import sys
+import threading
 
 
 class MadeonScraper(object):
@@ -16,10 +17,6 @@ class MadeonScraper(object):
         self._total_scrape_attempts = 0
 
     def start_scraper(self):
-
-        if self._total_scrape_attempts > 1:
-            self._shutdown()
-
         self.logger.info("Scraping...")
         instrument_paths = ["bass", "drum", "sounds"]
         self._ensure_local_directory_exists()
@@ -43,9 +40,7 @@ class MadeonScraper(object):
                         self.logger.debug("URL doesn't exist - %s out of range",
                                           destination_path[6:])
                 except Exception as e:
-                    self.logger.warn(
-                        "Received unexpected exception. Stopping scrape.", e)
-                    self._shutdown()
+                    raise Exception("Received unexpected exception", e)
         self._cleanup()
 
     def _make_request(self, instrument, n):
@@ -99,17 +94,14 @@ class MadeonScraper(object):
         elif failed_downloads:
             self.logger.warn("Error in writing file/download - %s should exist",
                              failed_downloads)
-            self.logger.warn("Attempted to redownload")
-            self._total_scrape_attempts += 1
-            self.start_scraper()
 
-    def _shutdown(self):
-        self.logger.warn("After two attempts, cannot scrape files. Exiting...")
+            if self._total_scrape_attempts < 2:
+                self.logger.warn("Attempting to redownload...")
+                self._total_scrape_attempts += 1
+                self.start_scraper()
 
-        try:
-            sys.exit(0)
-        except SystemExit:
-            os._exit(0)
+            self.logger.warn("Could not complete download after two attempts")
+            raise IOError
 
 
 def main(args):
@@ -120,31 +112,34 @@ def main(args):
     else:
         level = logging.INFO
 
+    # sets all loggers from requests library to warning, useful for --debug
+    logging.getLogger("requests").setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+
     logging.basicConfig(level=level, format=log_fmt)
     logger = logging.getLogger()
-
-    # sets all loggers from requests library to warning, useful for --debug
-    for key in logging.Logger.manager.loggerDict:
-        logging.getLogger(key).setLevel(logging.WARNING)
 
     # Turns off logging
     if args.no_log:
         logger.disabled = True
 
-    ms = MadeonScraper()
+    try:
+        ms = MadeonScraper()
+        thread = threading.Thread(target=ms.start_scraper())
+        thread.start()
+    except (KeyboardInterrupt, IOError, Exception) as e:
+        exception_handler(e, logger)
+
+
+def exception_handler(e, logger):
+    # newline makes logger more obvious
+    print("\n")
+    logger.warn("Exiting...")
 
     try:
-        ms.start_scraper()
-    except KeyboardInterrupt:
-        # newline makes logger more obvious
-        print("\n")
-        logger.warn(
-            "Received KeyboardInterrupt. Stopping scrape.")
-
-        try:
-            sys.exit(0)
-        except SystemExit:
-            os._exit(0)
+        sys.exit(0)
+    except SystemExit:
+        os._exit(0)
 
 
 if __name__ == '__main__':
