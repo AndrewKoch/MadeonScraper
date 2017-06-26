@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+"""Scrapes audio files from Madeon's awesome Adventure Machine"""
+
 import argparse
 import logging
 import os
@@ -30,7 +32,7 @@ class MadeonScraper(object):
                 if self._check_if_file_exists(destination_path):
                     res = self._make_request(instrument, i)
                 else:
-                    self.logger.info("%s already exists!", destination_path[24:])
+                    self.logger.info("%s already exists", destination_path[24:])
                     continue
 
                 try:
@@ -38,9 +40,8 @@ class MadeonScraper(object):
                     if res.status_code == 200:
                         self._write_file(res.raw, destination_path)
                     elif res.status_code == 404:
-                        self.logger.debug(
-                            "URL doesn't exist - %s out of range",
-                            destination_path[6:])
+                        self.logger.debug("URL doesn't exist - %s out of range",
+                                          destination_path[6:])
                 except Exception as e:
                     self.logger.warn(
                         "Received unexpected exception. Stopping scrape.", e)
@@ -55,14 +56,15 @@ class MadeonScraper(object):
     def _get_full_url(self, instrument, n):
         url_base = "http://madeonwmas.s3-eu-west-1.amazonaws.com/assets/audio/"
         file_format = "{}.1.{}.ogg"
-        full_url = url_base + file_format.format(instrument, n)
-        return full_url
+        return url_base + file_format.format(instrument, n)
 
     def _ensure_local_directory_exists(self):
+        """Makes directory if it doesn't exist. Throws no exception"""
         relative_path = "AdventureMachineSamples/"
         os.makedirs(relative_path, exist_ok=True)
 
     def _check_if_file_exists(self, destination_path):
+        """os.path.isfile(path) returns True if file exists"""
         return not os.path.isfile(destination_path)
 
     def _write_file(self, raw_response, destination_path):
